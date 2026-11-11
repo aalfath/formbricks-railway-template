@@ -17,6 +17,19 @@ COPY cube/schema/ /cube/conf/model/
 COPY --from=bootstrap-deps /bootstrap/node_modules /cube/bootstrap/node_modules
 COPY bootstrap/start.js /cube/bootstrap/start.js
 
+# Defaults for the template, matching upstream's compose. Railway templates can't carry fixed
+# variable values, so they live here; any of them can still be overridden with a service variable.
+ENV PORT=4000 \
+    CUBEJS_DB_TYPE=postgres \
+    CUBEJS_DB_NAME=hub \
+    CUBEJS_JWT_ISSUER=formbricks-web \
+    CUBEJS_JWT_AUDIENCE=formbricks-cube \
+    CUBEJS_DEFAULT_API_SCOPES=meta,data \
+    CUBEJS_CACHE_AND_QUEUE_DRIVER=memory \
+    CUBEJS_EXTERNAL_DEFAULT=false \
+    BOOTSTRAP_DATABASES="hub spicedb" \
+    BOOTSTRAP_BUCKET_CORS_ORIGINS="*"
+
 CMD ["/cube/bootstrap/start.js"]
 
 EXPOSE 4000

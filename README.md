@@ -36,12 +36,23 @@ It runs before Cube on every start, and never drops or overwrites anything.
 
 ## Variables
 
-The template sets `CUBEJS_DB_*` to the `hub` database on the template's Postgres, plus `CUBEJS_API_SECRET`
-(shared with Formbricks), `CUBEJS_JWT_ISSUER=formbricks-web`, `CUBEJS_JWT_AUDIENCE=formbricks-cube`,
-`CUBEJS_DEFAULT_API_SCOPES=meta,data`, `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` and `CUBEJS_EXTERNAL_DEFAULT=false`,
-as upstream's compose does. The start script reads `BOOTSTRAP_DATABASES`, `BOOTSTRAP_BUCKET`,
-`BOOTSTRAP_BUCKET_ENDPOINT`, `BOOTSTRAP_BUCKET_REGION`, `BOOTSTRAP_BUCKET_ACCESS_KEY_ID`,
-`BOOTSTRAP_BUCKET_SECRET_ACCESS_KEY` and `BOOTSTRAP_BUCKET_CORS_ORIGINS`. Railway checks `/readyz`.
+The image sets these defaults, the values upstream's compose uses: `PORT=4000`, `CUBEJS_DB_TYPE=postgres`,
+`CUBEJS_DB_NAME=hub`, `CUBEJS_JWT_ISSUER=formbricks-web`, `CUBEJS_JWT_AUDIENCE=formbricks-cube` (Formbricks'
+own defaults), `CUBEJS_DEFAULT_API_SCOPES=meta,data`, `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory`,
+`CUBEJS_EXTERNAL_DEFAULT=false`, `BOOTSTRAP_DATABASES="hub spicedb"` and `BOOTSTRAP_BUCKET_CORS_ORIGINS="*"`.
+They're image defaults because Railway templates can't carry fixed variable values; a service variable with
+the same name overrides any of them.
+
+The template's Cube service sets only the connection details: `CUBEJS_DB_HOST`, `CUBEJS_DB_PORT`,
+`CUBEJS_DB_USER` and `CUBEJS_DB_PASS` from Postgres, `CUBEJS_API_SECRET` (shared with Formbricks), and
+`BOOTSTRAP_BUCKET`, `BOOTSTRAP_BUCKET_ENDPOINT`, `BOOTSTRAP_BUCKET_REGION`, `BOOTSTRAP_BUCKET_ACCESS_KEY_ID` and
+`BOOTSTRAP_BUCKET_SECRET_ACCESS_KEY` from the bucket. Railway checks `/readyz`.
+
+## Image
+
+`.github/workflows/image.yml` builds the image on every `v*` tag and publishes it as
+`ghcr.io/aalfath/formbricks-railway-cube:<tag without v>` (for example `v6.1.4-2` → `6.1.4-2`). The template pins
+it by digest, so deployers don't build anything.
 
 ## Updating
 
