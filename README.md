@@ -12,26 +12,43 @@ copies the same files into the same upstream image:
 | Base image | `ghcr.io/formbricks/cube:1.7.50-1`, pinned by digest (the tag Formbricks 6.1.4's compose uses) |
 | `cube/cube.js` | `formbricks/formbricks@6.1.4:docker/cube/cube.js`, unchanged |
 | `cube/schema/FeedbackRecords.js` | `formbricks/formbricks@6.1.4:docker/cube/schema/FeedbackRecords.js`, unchanged |
-| `bootstrap/start.js` | Ours: creates the databases in `BOOTSTRAP_DATABASES` if missing, then starts Cube |
+| `bootstrap/start.js` | Ours: one-time setup (below), then starts Cube the way the upstream image does |
+| `bootstrap/package*.json` | Ours: pins `@aws-sdk/client-s3`, the start script's only dependency |
 
-## Why the start script
+## What the start script does
 
-Formbricks applies its schema with `prisma migrate deploy`, which refuses to run on a `public` schema that
-already holds other tables. On Railway, Hub, Cube and SpiceDB can come up before Formbricks, so they can't
-share Formbricks' database the way upstream's production compose does. Instead they get their own databases
-on the same Postgres server (`hub` for Hub and Cube, `spicedb` for SpiceDB), as upstream's development
-compose does. Railway's Postgres creates only one database, and the Hub and SpiceDB images have no `psql`,
-so `bootstrap/start.js` uses the `pg` module already in the Cube image to run `CREATE DATABASE` for each
-missing name, through the `postgres` maintenance database. It never drops or changes anything that exists.
-Hub and SpiceDB retry their migrations until their database exists.
+It runs before Cube on every start, and never drops or overwrites anything.
 
-The template sets `CUBEJS_DB_*` to the `hub` database on the template's Postgres, `BOOTSTRAP_DATABASES=hub spicedb`, `CUBEJS_API_SECRET` (also given to Formbricks),
-`CUBEJS_JWT_ISSUER=formbricks-web`, `CUBEJS_JWT_AUDIENCE=formbricks-cube`, `CUBEJS_DEFAULT_API_SCOPES=meta,data`,
-`CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` and `CUBEJS_EXTERNAL_DEFAULT=false`, as upstream's compose does.
-Railway checks `/readyz`.
+1. **Creates the Hub and SpiceDB databases.** Formbricks applies its schema with `prisma migrate deploy`,
+   which refuses to run on a `public` schema that already holds other tables. On Railway, Hub, Cube and SpiceDB
+   come up before Formbricks, so they can't share Formbricks' database the way upstream's production compose
+   does. They get their own databases on the same Postgres server instead (`hub` for Hub and Cube, `spicedb`
+   for SpiceDB), as upstream's development compose does. Railway's Postgres creates only one database, and the
+   Hub and SpiceDB images have no `psql`. So the script uses the `pg` module that's already in the Cube image
+   to run `CREATE DATABASE` for each missing name in `BOOTSTRAP_DATABASES`, through the `postgres` maintenance
+   database. Hub and SpiceDB retry their migrations until their database exists.
+2. **Adds a CORS rule to the uploads bucket.** Formbricks uploads files straight from the browser to S3 with
+   presigned POSTs, which needs CORS on the bucket. A new Railway bucket has no CORS rules. If
+   `BOOTSTRAP_BUCKET` is set and the bucket has no rules yet, the script adds one allowing `GET`, `HEAD`,
+   `POST` and `PUT` from `BOOTSTRAP_BUCKET_CORS_ORIGINS` (default `*`). The bucket stays private: every upload
+   and download still needs a URL signed by Formbricks. If the bucket already has CORS rules, it leaves them
+   alone, so you can set your own. A failure here is logged, and Cube starts anyway.
+
+## Variables
+
+The template sets `CUBEJS_DB_*` to the `hub` database on the template's Postgres, plus `CUBEJS_API_SECRET`
+(shared with Formbricks), `CUBEJS_JWT_ISSUER=formbricks-web`, `CUBEJS_JWT_AUDIENCE=formbricks-cube`,
+`CUBEJS_DEFAULT_API_SCOPES=meta,data`, `CUBEJS_CACHE_AND_QUEUE_DRIVER=memory` and `CUBEJS_EXTERNAL_DEFAULT=false`,
+as upstream's compose does. The start script reads `BOOTSTRAP_DATABASES`, `BOOTSTRAP_BUCKET`,
+`BOOTSTRAP_BUCKET_ENDPOINT`, `BOOTSTRAP_BUCKET_REGION`, `BOOTSTRAP_BUCKET_ACCESS_KEY_ID`,
+`BOOTSTRAP_BUCKET_SECRET_ACCESS_KEY` and `BOOTSTRAP_BUCKET_CORS_ORIGINS`. Railway checks `/readyz`.
+
+## Updating
 
 To move to a newer Formbricks release, copy `docker/cube/` from that release tag and set the base image to the
 Cube tag its compose file names.
+
+## License
 
 The files in `cube/` come from [Formbricks](https://github.com/formbricks/formbricks) and are licensed under the
 GNU AGPL v3, as is this repository (see `LICENSE`).

@@ -1,0 +1,9 @@
+{
+  "name": "formbricks-railway-bootstrap",
+  "private": true,
+  "description": "One-time setup run by the Cube service of the Formbricks Railway template",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1166.0"
+  }
+}
