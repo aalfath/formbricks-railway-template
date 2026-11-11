@@ -63,3 +63,7 @@ Cube tag its compose file names.
 
 The files in `cube/` come from [Formbricks](https://github.com/formbricks/formbricks) and are licensed under the
 GNU AGPL v3, as is this repository (see `LICENSE`).
+
+## Testing a deploy
+
+`test/e2e.js` drives a fresh deploy end to end with headless Chromium: admin sign-up, organization, a survey from a template, activation, an anonymous response through the public link, the response count, a logo upload to the bucket, and checks that sign-up is closed afterwards. Run `npm i playwright-core@1.57`, put an admin password in `./.pw`, then `node test/e2e.js https://<your-domain>`.
